@@ -1,27 +1,11 @@
 # ---------------------------------------------------------------------------------
-# 1. API & Service Agent Initialization
-# Enables the AI Platform API and forces the synchronous creation of the P4SA
-# ---------------------------------------------------------------------------------
-resource "google_project_service" "aiplatform" {
-  project            = var.tenant_project_id
-  service            = "aiplatform.googleapis.com"
-  disable_on_destroy = false
-}
-
-resource "google_project_service_identity" "aiplatform_sa" {
-  project = var.tenant_project_id
-  service = "aiplatform.googleapis.com"
-
-  depends_on = [google_project_service.aiplatform]
-}
-
-# ---------------------------------------------------------------------------------
-# 2. IAM Delegation (Mimics VRP `GrantServiceAccountPayload`)
-# Grants the Cloud Run Service Agent permission to generate tokens for the Vertex P4SA
+# 1. IAM Delegation (Mimics VRP `GrantServiceAccountPayload`)
+# Grants the Cloud Run Service Agent permission to generate tokens for the Generic SA
 # ---------------------------------------------------------------------------------
 resource "google_service_account_iam_member" "cloudrun_p4sa_token_creator" {
-  # The Resource: The Vertex AI P4SA we just forced GCP to create
-  service_account_id = google_project_service_identity.aiplatform_sa.name
+  # The Resource: A generic SA in the producer project (kshalu-org-1)
+  # Ensure this SA is created in the producer project before running!
+  service_account_id = "projects/kshalu-org-1/serviceAccounts/generic-vertex-sa@kshalu-org-1.iam.gserviceaccount.com"
   
   role               = "roles/iam.serviceAccountTokenCreator"
   
@@ -30,7 +14,7 @@ resource "google_service_account_iam_member" "cloudrun_p4sa_token_creator" {
 }
 
 # ---------------------------------------------------------------------------------
-# 3. Offline Initialization Service (Mimics VRP `CreateCloudRunServicePayload` dry-run)
+# 2. Offline Initialization Service (Mimics VRP `CreateCloudRunServicePayload` dry-run)
 # Forces Cloud Run to initialize the project backend and validate the IAM setup
 # ---------------------------------------------------------------------------------
 resource "google_cloud_run_v2_service" "prewarmed_init_service" {
@@ -39,8 +23,8 @@ resource "google_cloud_run_v2_service" "prewarmed_init_service" {
   project  = var.tenant_project_id
 
   template {
-    # It must run under the Vertex P4SA identity, which is why the token creator grant is required above
-    service_account = google_project_service_identity.aiplatform_sa.email
+    # It must run under the generic SA identity
+    service_account = "generic-vertex-sa@kshalu-org-1.iam.gserviceaccount.com"
     
     containers {
       image = "us-docker.pkg.dev/cloudrun/container/hello:latest"
