@@ -8,8 +8,9 @@ resource "google_project_service" "cloudrun" {
 }
 
 resource "google_project_service_identity" "cloudrun_sa" {
-  project = var.tenant_project_id
-  service = "run.googleapis.com"
+  provider = google-beta
+  project  = var.tenant_project_id
+  service  = "run.googleapis.com"
 
   depends_on = [google_project_service.cloudrun]
 }
