@@ -1,6 +1,22 @@
 # ---------------------------------------------------------------------------------
-# 1. IAM Delegation (Mimics VRP `GrantServiceAccountPayload`)
-# Grants the Cloud Run Service Agent permission to generate tokens for the Generic SA
+# 1. API & Service Agent Initialization
+# ---------------------------------------------------------------------------------
+resource "google_project_service" "cloudrun" {
+  project            = var.tenant_project_id
+  service            = "run.googleapis.com"
+  disable_on_destroy = false
+}
+
+resource "google_project_service_identity" "cloudrun_sa" {
+  project = var.tenant_project_id
+  service = "run.googleapis.com"
+
+  depends_on = [google_project_service.cloudrun]
+}
+
+# ---------------------------------------------------------------------------------
+# 2. IAM Delegation (Mimics VRP `GrantServiceAccountPayload`)
+# Grants the Cloud Run Service Agent permission to generate tokens for the Vertex P4SA
 # ---------------------------------------------------------------------------------
 resource "google_service_account_iam_member" "cloudrun_p4sa_token_creator" {
   # The Resource: A generic SA in the producer project (kshalu-org-1)
@@ -10,7 +26,7 @@ resource "google_service_account_iam_member" "cloudrun_p4sa_token_creator" {
   role               = "roles/iam.serviceAccountTokenCreator"
   
   # The Member: The Cloud Run Service Agent for the Tenant Project
-  member             = "serviceAccount:service-${var.tenant_project_number}@server-gcp-sa-cloudrun.iam.gserviceaccount.com"
+  member             = "serviceAccount:${google_project_service_identity.cloudrun_sa.email}"
 }
 
 # ---------------------------------------------------------------------------------
