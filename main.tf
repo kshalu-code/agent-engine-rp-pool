@@ -38,6 +38,7 @@ resource "google_cloud_run_v2_service" "prewarmed_init_service" {
   name     = "agent-engine-cloud-run-dry-run-service"
   location = var.location
   project  = var.tenant_project_id
+  ingress  = "INGRESS_TRAFFIC_INTERNAL_ONLY"
 
   template {
     # It must run under the generic SA identity
